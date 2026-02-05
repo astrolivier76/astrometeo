@@ -6,6 +6,9 @@ OTAHandler::OTAHandler() {
     _ssid = ssid;
     _password = password;
     logs = "";
+    // Réserve de la mémoire dès le début pour éviter la fragmentation
+    // Cela crée un bloc contigu en RAM une fois pour toutes
+    logs.reserve(2100); 
 }
 
 void OTAHandler::cleanLogs() {
@@ -38,14 +41,17 @@ void OTAHandler::begin(AsyncWebServer &server) {
 }
 
 void OTAHandler::addToLogs(const String& message) {
-    logs += message + "\n";
-    if (logs.length() > 2000) {
-        logs = logs.substring(logs.length() - 2000);
+    // Protection mémoire simple
+    if (logs.length() + message.length() + 2 > 2000) {
+        // Si on dépasse, on coupe drastiquement la première moitié pour éviter
+        // de faire des substring() trop fréquents (lourds pour le CPU/RAM)
+        logs = logs.substring(logs.length() / 2);
     }
+    logs += message + "\n";
 }
 
 void OTAHandler::handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    static UpdateClass updater;
+    // Pas de static ici, risque de problèmes si plusieurs upload échouent/recommencent
     
     if (index == 0) {
         String msg = "Update Start: " + filename;
@@ -63,9 +69,15 @@ void OTAHandler::handleFileUpload(AsyncWebServerRequest *request, String filenam
             Update.printError(Serial);
             addToLogs("Write failed");
         } else {
-            String msg = "Written " + String(len) + " bytes";
-            DEBUG_PRINTLN(msg);
-            addToLogs(msg);
+            // Optimisation : On ne log pas CHAQUE paquet, sinon la RAM explose et le WiFi sature
+            // On log seulement tous les 50 Ko environ
+            static size_t lastLogSize = 0;
+            if (index - lastLogSize > 50000) {
+                 String msg = "Written " + String(index + len) + " bytes...";
+                 DEBUG_PRINTLN(msg);
+                 addToLogs(msg);
+                 lastLogSize = index;
+            }
         }
     }
 
@@ -75,6 +87,7 @@ void OTAHandler::handleFileUpload(AsyncWebServerRequest *request, String filenam
             DEBUG_PRINTLN(msg);
             addToLogs(msg);
             request->send(200, "text/plain", "Update Success. Rebooting...");
+            // Le delay est acceptable ici car on va rebooter de toute façon
             delay(1000);
             ESP.restart();
         } else {

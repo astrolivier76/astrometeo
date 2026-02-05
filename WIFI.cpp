@@ -7,23 +7,29 @@
 // --- PARAMETRES WIFI ---
 unsigned long previousMillis = 0;
 const long interval = 10000;
-const long checkInterval = 60000;
-unsigned long lastCheckMillis = 0;
+// const long checkInterval = 60000; // Pas utilisé
+// unsigned long lastCheckMillis = 0; // Pas utilisé
 int reconnectAttempts = 0;
-const int maxReconnectAttempts = 5;
+const int maxReconnectAttempts = 20; // Augmenté car la vérification est plus rapide
 unsigned long lastWiFiCheck = 0;
-const long wifiCheckInterval = 60000; // 60 secondes au lieu de 30
+const long wifiCheckInterval = 30000; // Vérif toutes les 30s
+
+// Variables pour la gestion non-bloquante
+bool isReconnecting = false;
+unsigned long reconnectStartTime = 0;
 
 void WiFiEvent(WiFiEvent_t event) {
     switch (event) {
         case SYSTEM_EVENT_STA_GOT_IP:
-            DEBUG_PRINTLN("Connecté au WiFi");
-            DEBUG_PRINT("address IP: ");
+            DEBUG_PRINTLN("[WiFi] Connecté !");
+            DEBUG_PRINT("Adresse IP: ");
             DEBUG_PRINTLN(WiFi.localIP());
+            isReconnecting = false;
+            reconnectAttempts = 0;
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            DEBUG_PRINTLN("Connexion au WIFI perdue, tentative de reconnection...");
-            WiFi.begin(ssid, password);
+            DEBUG_PRINTLN("[WiFi] Déconnecté.");
+            // Ne pas bloquer ici avec WiFi.begin, on laisse checkWiFi gérer
             break;
     }
 }
@@ -38,15 +44,16 @@ void initWiFi(void) {
     }
     
     WiFi.begin(ssid, password);
-    DEBUG_PRINT("Connection au WiFi ..");
+    DEBUG_PRINT("Connexion au WiFi en cours");
     
+    // Au démarrage, on peut se permettre d'attendre un peu (mais pas indéfiniment)
     previousMillis = millis();
     while (WiFi.status() != WL_CONNECTED) {
         DEBUG_PRINT('.');
         delay(500);
-        if (millis() - previousMillis >= interval) {
-            DEBUG_PRINTLN("Échec de la connexion au WiFi, redémarrage...");
-            ESP.restart();
+        if (millis() - previousMillis >= 10000) { // 10 secondes max au boot
+            DEBUG_PRINTLN("\n[WiFi] Pas de connexion au démarrage, continuation en mode autonome.");
+            break; 
         }
     }
     
@@ -54,40 +61,42 @@ void initWiFi(void) {
     WiFi.setSleep(true);
     esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
     
-    DEBUG_PRINTLN("Connecté au WiFi");
-    DEBUG_PRINT("Adresse IP: ");
-    DEBUG_PRINTLN(WiFi.localIP());
+    if(WiFi.status() == WL_CONNECTED){
+        DEBUG_PRINTLN("\n[WiFi] Connecté au démarrage");
+    }
 }
 
+// VERSION NON-BLOQUANTE ET SÉCURISÉE
 void checkWiFi() {
     unsigned long currentMillis = millis();
+
+    // Si on est déjà connecté, on ne fait rien sauf vérifier périodiquement
+    if (WiFi.status() == WL_CONNECTED) {
+        isReconnecting = false;
+        reconnectAttempts = 0;
+        return;
+    }
+
+    // Si on n'est pas connecté, on gère la reconnexion sans bloquer le loop()
     if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
         lastWiFiCheck = currentMillis;
         
-        if (WiFi.status() != WL_CONNECTED) {
-            DEBUG_PRINTLN("WiFi déconnecté, tentative de reconnexion...");
-            WiFi.disconnect(false);
-            delay(100);
-            WiFi.begin(ssid, password);
-            
-            unsigned long reconnectStart = millis();
-            reconnectAttempts++;
-            
-            while (WiFi.status() != WL_CONNECTED) {
-                delay(500);
-                if (millis() - reconnectStart >= interval || reconnectAttempts >= maxReconnectAttempts) {
-                    DEBUG_PRINTLN("Échec de reconnexion. Redémarrage...");
-                    ESP.restart();
-                }
-            }
-            reconnectAttempts = 0;
-            DEBUG_PRINTLN("WiFi reconnecté avec succès");
+        DEBUG_PRINTLN("[WiFi] Tentative de reconnexion (Non-bloquant)...");
+        
+        // On ne déconnecte pas explicitement pour éviter de casser une négo en cours
+        WiFi.reconnect();
+        
+        reconnectAttempts++;
+        if (reconnectAttempts > maxReconnectAttempts) {
+             DEBUG_PRINTLN("[WiFi] Trop d'échecs. Redémarrage du module pour forcer le hardware.");
+             // On redémarre l'ESP seulement si vraiment nécessaire après de nombreux échecs
+             // Car un reboot ferme l'observatoire temporairement (perte de contrôle)
+             ESP.restart(); 
         }
     }
 }
 
 String getLocalIPAddress() {
-    char jsonBuffer[50];
-    snprintf(jsonBuffer, sizeof(jsonBuffer), "{\"ip\":\"%s\"}", WiFi.localIP().toString().c_str());
-    return String(jsonBuffer);
+    // Optimisation : éviter snprintf pour une simple IP
+    return "{\"ip\":\"" + WiFi.localIP().toString() + "\"}";
 }

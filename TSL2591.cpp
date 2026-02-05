@@ -163,7 +163,11 @@ bool calibrateTSL2591() {
   return false;
 }
 
+// --- CORRECTION RECURSION INFINIE ---
+// Ajout d'une variable statique pour limiter la profondeur de récursion
 void updateTSL2591() {
+    static int recursionDepth = 0; // Compteur de sécurité
+
     // Tentative de récupération si capteur défaillant
     if (!tslAvailable) {
         unsigned long currentMillis = millis();
@@ -202,7 +206,18 @@ void updateTSL2591() {
     tsl2591Data.timing  = tsl.getTiming();
 
     bool changed = calibrateTSL2591();
-    if (changed) updateTSL2591();
+    
+    // --- GESTION DE LA RECURSION SECURISEE ---
+    if (changed) {
+        if (recursionDepth < 3) {
+            DEBUG_PRINTF("[TSL2591] Gain ajusté, nouvelle mesure (profondeur %d)...\n", recursionDepth);
+            recursionDepth++;
+            updateTSL2591();
+            recursionDepth--; // Décrémenter en sortant
+        } else {
+            DEBUG_PRINTLN("[TSL2591] AVERTISSEMENT : Limite de récursion atteinte, arrêt de l'ajustement du gain.");
+        }
+    }
 }
 
 float getLux() {

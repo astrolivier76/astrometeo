@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mise à jour par OTA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #3a3a3a;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            color: #333;
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 { color: #333; font-size: 1.5rem; margin-bottom: 20px;}
+        input[type='file'] { display: none; }
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            background-color: #5bc0de;
+            color: white;
+            transition: background 0.3s;
+        }
+        .custom-file-upload:hover { background-color: #46b8da; }
+        .btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+        }
+        .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { background-color: #2ecc71; }
+        
+        #prg { margin-top: 20px; font-weight: bold; }
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+            height: 25px;
+            border: 1px solid #ddd;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            width: 0;
+            background-color: #5bc0de;
+            text-align: center;
+            line-height: 25px;
+            color: white;
+            font-size: 12px;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mise à jour Firmware</h1>
+        <form id='upload_form' enctype='multipart/form-data'>
+            <label for="file-upload" class="custom-file-upload">
+                <span id="file-name">Sélectionner fichier .bin</span>
+            </label>
+            <input id="file-upload" type="file" name="update" accept=".bin">
+            <br>
+            <button type="submit" class="btn" id="submit-btn" disabled>Lancer la mise à jour</button>
+        </form>
+        
+        <div id="prg">En attente...</div>
+        <div class="progress-bar">
+            <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
+        </div>
+        <div id="button-container" style="margin-top: 15px;"></div>
+    </div>
+
+    <script>
+        // Version Vanilla JS (Sans jQuery) pour autonomie totale
+        const fileInput = document.getElementById('file-upload');
+        const fileNameSpan = document.getElementById('file-name');
+        const submitBtn = document.getElementById('submit-btn');
+        const form = document.getElementById('upload_form');
+        const prg = document.getElementById('prg');
+        const progressBar = document.getElementById('progress-bar-inner');
+
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                fileNameSpan.innerText = this.files[0].name;
+                submitBtn.disabled = false;
+                prg.innerText = "Fichier prêt : " + this.files[0].name;
+            } else {
+                submitBtn.disabled = true;
+            }
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("update", file);
+
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener("progress", function(evt) {
+                if (evt.lengthComputable) {
+                    const percent = Math.round((evt.loaded / evt.total) * 100);
+                    prg.innerText = "Progression : " + percent + "%";
+                    progressBar.style.width = percent + "%";
+                    progressBar.innerText = percent + "%";
+                }
+            }, false);
+
+            xhr.addEventListener("load", function() {
+                if (xhr.status === 200) {
+                    prg.innerText = "Succès ! Redémarrage en cours...";
+                    progressBar.style.backgroundColor = "#27ae60"; // Vert
+                    showReturnButton();
+                } else {
+                    prg.innerText = "Erreur : " + xhr.responseText;
+                    progressBar.style.backgroundColor = "#e74c3c"; // Rouge
+                }
+            });
+
+            xhr.addEventListener("error", function() {
+                prg.innerText = "Erreur réseau.";
+                progressBar.style.backgroundColor = "#e74c3c";
+            });
+
+            xhr.open("POST", "/update");
+            xhr.send(formData);
+        });
+
+        function showReturnButton() {
+            const container = document.getElementById('button-container');
+            container.innerHTML = '<button class="btn" style="background-color:#34495e;" onclick="window.location.href=\'/\'">Retour à l\'accueil</button>';
+        }
+    </script>
+</body>
+</html>

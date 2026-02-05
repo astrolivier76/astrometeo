@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <title>METEO ASTRO ESP32 - Icônes Visuelles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+  <link rel="icon" type="image/png" href="https://www.raspberryme.com/esp32-web-server-gauges/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* STYLES DE BASE */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Arial', sans-serif; background-color: #CCCAC9; min-height: 100vh; display: flex; flex-direction: column; }
+    
+    /* EN-TÊTE */
+    .topnav { background-color: #2c3e50; color: white; padding: 15px; position: sticky; top: 0; z-index: 1000; }
+    .topnav-content { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; max-width: 1200px; margin: 0 auto; }
+    .topnav-left { display: flex; justify-content: flex-start; }
+    .topnav-center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .topnav-right { display: flex; justify-content: flex-end; }
+    
+    .current-time { background: rgba(255, 255, 255, 0.1); color: white; padding: 10px 15px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; }
+    .current-date { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+    .current-clock { font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.1rem; }
+    
+    .encadre { background-color: #46b8da; color: white; padding: 12px 25px; font-size: 1.6rem; border-radius: 8px; text-align: center; margin: 0 0 10px 0; text-transform: uppercase; font-weight: bold; }
+    .connection-status { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; background-color: #7f8c8d; color: white; }
+    .status-connected { background-color: #27ae60 !important; }
+    .status-disconnected { background-color: #e74c3c !important; }
+    
+    .ws-status { display: inline-block; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-left: 10px; }
+    .ws-status.connected { background-color: #27ae60; color: white; }
+    .ws-status.disconnected { background-color: #e74c3c; color: white; }
+    
+    .btn-ota { background: linear-gradient(135deg, #46b8da 0%, #369cb9 100%); border: none; color: white; padding: 12px 20px; text-align: center; font-size: 14px; cursor: pointer; border-radius: 25px; transition: all 0.3s ease; white-space: nowrap; }
+    .btn-ota:hover { background: linear-gradient(135deg, #369cb9 0%, #2a7b95 100%); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    
+    /* CONTENU */
+    .content { padding: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
+    .card-grid-special { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
+    
+    .card { background-color: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 400px; min-height: 400px; max-height: 400px; overflow: hidden; }
+    .card-title { font-size: 1.2rem; font-weight: bold; color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #46b8da; padding-bottom: 8px; text-align: center; height: 60px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    
+    .visual-gauge { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 250px; min-height: 250px; max-height: 250px; width: 100%; position: relative; }
+    .gauge-value-large { font-size: 2rem; font-weight: bold; color: #2c3e50; text-align: center; background: #f8f9fa; padding: 10px 20px; border-radius: 25px; border: 2px solid #46b8da; min-width: 120px; height: 60px; display: flex; align-items: center; justify-content: center; margin-top: 15px; }
+    
+    /* THERMOMÈTRE */
+    .thermometer { position: relative; width: 60px; height: 180px; margin: 0 auto; }
+    .thermometer-tube { position: absolute; top: 10px; left: 15px; width: 30px; height: 150px; border: 3px solid #ccc; border-bottom: none; border-radius: 15px 15px 0 0; overflow: hidden; background: #fff; }
+    .thermometer-liquid { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #2ecc71, #f39c12, #e74c3c); border-radius: 12px 12px 0 0; transition: height 1s ease; height: 0; }
+    
+    /* STATUS GRID */
+    .status-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 30px 0; }
+    .status-item { background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 180px; min-height: 180px; max-height: 180px; }
+    .status-icon { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #46b8da, #369cb9); border-radius: 50%; color: white; font-size: 1.5rem; position: relative; }
+    .status-value { font-size: 1.8rem; font-weight: bold; color: #2c3e50; height: 50px; display: flex; align-items: center; justify-content: center; }
+    .status-label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600; }
+    
+    /* ANÉMOMÈTRE */
+    .wind-icon { position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .wind-blades { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; animation: windSpin 3s linear infinite; }
+    .blade { position: absolute; width: 3px; height: 20px; background: #34495e; top: 50%; left: 50%; transform-origin: center bottom; }
+    .blade:nth-child(1) { transform: translate(-50%, -100%) rotate(0deg); }
+    .blade:nth-child(2) { transform: translate(-50%, -100%) rotate(120deg); }
+    .blade:nth-child(3) { transform: translate(-50%, -100%) rotate(240deg); }
+    @keyframes windSpin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+    .wind-blades.fast { animation-duration: 1s; }
+    .wind-blades.medium { animation-duration: 2s; }
+    .wind-blades.slow { animation-duration: 3s; }
+    
+    /* PLUVIOMÈTRE */
+    .rain-gauge { position: relative; width: 80px; height: 150px; }
+    .rain-container { position: absolute; bottom: 0; width: 60px; height: 120px; border: 3px solid #95a5a6; border-radius: 30px 30px 0 0; overflow: hidden; background: #ecf0f1; }
+    .rain-level { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #3498db, #2980b9); transition: height 1s ease; height: 0; }
+    
+    /* DÉTECTEUR PLUIE */
+    .rain-sensor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; height: 120px; }
+    .sensor-surface { width: 80px; height: 80px; border: 3px solid #bdc3c7; border-radius: 10px; position: relative; overflow: hidden; background: #ecf0f1; transition: all 0.5s ease; }
+    .sensor-surface.wet { background: #3498db; border-color: #2980b9; }
+    .sensor-status { display: flex; gap: 10px; }
+    .status-dry, .status-wet { padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; text-transform: uppercase; }
+    .status-dry { background: #2ecc71; color: white; }
+    .status-wet { background: #e74c3c; color: white; }
+    
+    /* LUMINOSITÉ & SQM */
+    .light-meter { width: 200px; height: 30px; background: linear-gradient(to right, #2c3e50, #f39c12, #f1c40f); border-radius: 15px; position: relative; margin: 10px 0; }
+    .light-indicator { position: absolute; top: -5px; width: 3px; height: 40px; background: #e74c3c; transform: translateX(-50%); transition: left 1s ease; left: 0; }
+    .light-labels, .sqm-labels { display: flex; justify-content: space-between; width: 200px; margin-top: 5px; font-size: 10px; color: #666; }
+    
+    .sky-quality { position: relative; width: 200px; height: 30px; background: linear-gradient(to right, #e74c3c, #f39c12, #2ecc71); border-radius: 15px; margin: 10px 0; }
+    .quality-level { position: absolute; top: -5px; width: 3px; height: 40px; background: #34495e; transform: translateX(-50%); transition: left 1s ease; left: 0; }
+
+    /* FORMULAIRE CONSTANTES */
+    .constants-form { background: linear-gradient(135deg, #ecf0f1 0%, #dfe6e9 100%); padding: 20px; border-radius: 12px; margin: 30px auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; max-width: 500px; }
+    .constants-form .card-title { margin-bottom: 20px; }
+    .constant-input { margin: 10px 0; display: flex; align-items: center; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 100%; }
+    .constant-input label { width: 40px; font-weight: bold; color: #2c3e50; text-align: center; font-size: 1rem; flex-shrink: 0; }
+    .input-with-current { display: flex; align-items: center; flex: 1; gap: 15px; justify-content: space-between; }
+    .constant-input input { padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.3s ease; text-align: center; width: 120px; height: 40px; flex-shrink: 0; }
+    .constant-input input::placeholder { color: #95a5a6; font-size: 0.85rem; }
+    .current-value { padding: 8px 12px; background: linear-gradient(135deg, #46b8da 0%, #369cb9 100%); color: white; border-radius: 6px; min-width: 80px; text-align: center; font-weight: bold; font-size: 0.9rem; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .center-container { display: flex; justify-content: center; width: 100%; margin-top: 20px; }
+    
+    .footer { margin-top: 30px; padding: 20px; background-color: #2c3e50; color: white; border-top: 4px solid #46b8da; text-align: center; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) { .status-container { grid-template-columns: repeat(2, 1fr); } .card-grid-special { grid-template-columns: 1fr; } .topnav-content { grid-template-columns: 1fr; text-align: center; gap: 10px; } .topnav-left, .topnav-center, .topnav-right { justify-content: center; } .constants-form { max-width: 90%; } }
+    @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .status-container { grid-template-columns: 1fr; } .card { height: 380px; } .constant-input { flex-direction: column; gap: 10px; } .input-with-current { width: 100%; } }
+    @media (max-width: 480px) { .constant-input input { width: 100px; } .current-value { min-width: 70px; } }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <div class="topnav-content">
+      <div class="topnav-left">
+        <div class="current-time">
+          <div class="current-date" id="currentDate"></div>
+          <div class="current-clock" id="currentClock"></div>
+        </div>
+      </div>
+      <div class="topnav-center">
+        <h1 class="encadre">METEO ASTRO</h1>
+        <div class="connection-status status-disconnected" id="connectionStatus">
+          <span class="status-text">Connexion...</span>
+          <span class="ws-status disconnected" id="websocketStatus">
+            <span class="ws-text">WS: OFF</span>
+          </span>
+        </div>
+      </div>
+      <div class="topnav-right">
+        <button class="btn-ota" id="otaButton"><i class="fas fa-sync-alt"></i> Mise à jour OTA</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="content">
+    <div class="card-grid">
+      <div class="card">
+        <p class="card-title"><i class="fas fa-thermometer-full"></i> Température Ambiante</p>
+        <div class="visual-gauge">
+          <div class="thermometer"><div class="thermometer-tube"><div class="thermometer-liquid" id="thermometer-tube-ambiant"></div></div></div>
+          <div class="gauge-value-large" id="value-temperature">-- °C</div>
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-title"><i class="fas fa-cloud"></i> Température du Ciel</p>
+        <div class="visual-gauge">
+          <div class="thermometer"><div class="thermometer-tube"><div class="thermometer-liquid" id="thermometer-tube-ciel"></div></div></div>
+          <div class="gauge-value-large" id="value-temperature-ciel">-- °C</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-container">
+      <div class="status-item">
+        <div class="status-icon"><i class="fas fa-tint"></i></div>
+        <div class="status-value" id="status-humidity">--%</div>
+        <div class="status-label">Humidité</div>
+      </div>
+      <div class="status-item">
+        <div class="status-icon"><i class="fas fa-thermometer-half"></i></div>
+        <div class="status-value" id="status-dewpoint">-- °C</div>
+        <div class="status-label">Point de rosée</div>
+      </div>
+      <div class="status-item">
+        <div class="status-icon"><i class="fas fa-compress-arrows-alt"></i></div>
+        <div class="status-value" id="status-pressure">-- hPa</div>
+        <div class="status-label">Pression</div>
+      </div>
+      <div class="status-item">
+        <div class="status-icon wind-icon">
+          <div class="wind-blades" id="wind-blades"><div class="blade"></div><div class="blade"></div><div class="blade"></div></div>
+          <i class="fas fa-wind" style="font-size: 1.2rem;"></i>
+        </div>
+        <div class="status-value" id="status-wind">-- km/h</div>
+        <div class="status-label">Vitesse vent</div>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <p class="card-title"><i class="fas fa-tint"></i> Pluviomètre</p>
+        <div class="visual-gauge">
+          <div class="rain-gauge"><div class="rain-container"><div class="rain-level" id="rain-level"></div></div></div>
+          <div class="gauge-value-large" id="value-pluie">-- mm/h</div>
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-title"><i class="fas fa-cloud-rain"></i> Détecteur de pluie</p>
+        <div class="visual-gauge">
+          <div class="rain-sensor">
+            <div class="sensor-surface" id="sensor-surface"><div class="rain-drops"></div></div>
+            <div class="sensor-status"><span class="status-dry">SEC</span><span class="status-wet">PLUIE</span></div>
+          </div>
+          <div class="gauge-value-large" id="value-gouttes">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-grid-special">
+      <div class="card">
+        <p class="card-title"><i class="fas fa-sun"></i> Luminosité</p>
+        <div class="visual-gauge">
+          <div class="light-meter"><div class="light-indicator" id="light-indicator"></div></div>
+          <div class="light-labels"><span>0</span><span>88000</span></div>
+          <div class="gauge-value-large" id="value-luminosite">-- Lux</div>
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-title"><i class="fas fa-star"></i> SQM</p>
+        <div class="visual-gauge">
+          <div class="sky-quality"><div class="quality-level" id="quality-level"></div></div>
+          <div class="sqm-labels"><span>0</span><span>24</span></div>
+          <div class="gauge-value-large" id="value-sqm">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="constants-form">
+      <p class="card-title"><i class="fas fa-cog icon"></i> Modifier les Constantes</p>
+      <form action='/constantesmlx' method='post' id="constants-form">
+        <div class="constant-input"><label for="newK1">K1</label><div class="input-with-current"><input type='text' name='newK1' id='newK1' placeholder="Nouvelle valeur"><span class="current-value" id="currentK1">...</span></div></div>
+        <div class="constant-input"><label for="newK2">K2</label><div class="input-with-current"><input type='text' name='newK2' id='newK2' placeholder="Nouvelle valeur"><span class="current-value" id="currentK2">...</span></div></div>
+        <div class="constant-input"><label for="newK3">K3</label><div class="input-with-current"><input type='text' name='newK3' id='newK3' placeholder="Nouvelle valeur"><span class="current-value" id="currentK3">...</span></div></div>
+        <div class="constant-input"><label for="newK4">K4</label><div class="input-with-current"><input type='text' name='newK4' id='newK4' placeholder="Nouvelle valeur"><span class="current-value" id="currentK4">...</span></div></div>
+        <div class="constant-input"><label for="newK5">K5</label><div class="input-with-current"><input type='text' name='newK5' id='newK5' placeholder="Nouvelle valeur"><span class="current-value" id="currentK5">...</span></div></div>
+        <div class="constant-input"><label for="newK6">K6</label><div class="input-with-current"><input type='text' name='newK6' id='newK6' placeholder="Nouvelle valeur"><span class="current-value" id="currentK6">...</span></div></div>
+        <div class="constant-input"><label for="newK7">K7</label><div class="input-with-current"><input type='text' name='newK7' id='newK7' placeholder="Nouvelle valeur"><span class="current-value" id="currentK7">...</span></div></div>
+        <div class="constant-input"><label for="newTempClair">T° Clair</label><div class="input-with-current"><input type='text' name='newTempClair' id='newTempClair' placeholder="Nouvelle valeur"><span class="current-value" id="currentTempClair">...</span></div></div>
+        <div class="constant-input"><label for="newTempCouvert">T° Couvert</label><div class="input-with-current"><input type='text' name='newTempCouvert' id='newTempCouvert' placeholder="Nouvelle valeur"><span class="current-value" id="currentTempCouvert">...</span></div></div>
+        
+        <div class="center-container">
+          <button type='submit' class="btn-ota">Modifier les constantes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Version du Firmware: <span id="firmware-version">Loading...</span></p>
+  </div>
+
+  <script>
+    class CommunicationManager {
+        constructor() {
+            this.websocket = null;
+            this.isWebSocketConnected = false;
+            this.preferredChannel = 'websocket';
+            this.httpFallbackInterval = null;
+            this.lastUpdateTime = 0;
+            this.reconnectAttempts = 0;
+            this.maxReconnectAttempts = 5;
+        }
+        
+        init() {
+            this.startClock();
+            this.setupOTAButton();
+            this.getFirmwareVersion();
+            
+            // --- MODIFICATION ICI : On charge les constantes au démarrage via JS ---
+            this.loadInitialConstants();
+            
+            this.initWebSocket();
+            this.setupEventListeners();
+        }
+
+        // Nouvelle fonction pour charger les constantes initiales
+        async loadInitialConstants() {
+            try {
+                // On utilise /readings qui contient déjà les valeurs K1, K2, etc.
+                const response = await fetch("/readings");
+                if (!response.ok) throw new Error("HTTP error " + response.status);
+                const data = await response.json();
+                
+                // Remplissage des champs
+                this.updateConstantValue("currentK1", data.k1);
+                this.updateConstantValue("currentK2", data.k2);
+                this.updateConstantValue("currentK3", data.k3);
+                this.updateConstantValue("currentK4", data.k4);
+                this.updateConstantValue("currentK5", data.k5);
+                this.updateConstantValue("currentK6", data.k6);
+                this.updateConstantValue("currentK7", data.k7);
+                this.updateConstantValue("currentTempClair", data.temp_ciel_clair);
+                this.updateConstantValue("currentTempCouvert", data.temp_ciel_couvert);
+                
+                console.log("Constantes initiales chargées.");
+            } catch (error) {
+                console.error("Erreur chargement constantes:", error);
+            }
+        }
+        
+        startClock() {
+            this.displayCurrentDate();
+            this.displayCurrentTime();
+            setInterval(() => this.displayCurrentTime(), 1000);
+            setInterval(() => this.displayCurrentDate(), 60000);
+        }
+        
+        displayCurrentDate() {
+            const currentDate = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Europe/Paris' };
+            const dateElement = document.getElementById('currentDate');
+            if (dateElement) dateElement.textContent = currentDate.toLocaleDateString('fr-FR', options);
+        }
+        
+        displayCurrentTime() {
+            const currentDate = new Date();
+            const options = { hour: 'numeric', minute: 'numeric', second: 'numeric', timeZone: 'Europe/Paris' };
+            const clockElement = document.getElementById('currentClock');
+            if (clockElement) clockElement.textContent = currentDate.toLocaleTimeString('fr-FR', options);
+        }
+        
+        initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                this.isWebSocketConnected = true;
+                this.preferredChannel = 'websocket';
+                this.reconnectAttempts = 0;
+                this.updateConnectionStatus(true);
+                this.updateWebSocketStatus(true);
+                this.stopHttpFallback();
+                this.websocket.send('get_readings');
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'sensor_update') {
+                        this.handleSensorData(data.data);
+                    }
+                } catch (error) { console.error("Erreur parsing WS", error); }
+            };
+            
+            this.websocket.onclose = (event) => {
+                this.isWebSocketConnected = false;
+                this.preferredChannel = 'http';
+                this.updateWebSocketStatus(false);
+                this.startHttpFallback();
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    setTimeout(() => { this.reconnectAttempts++; this.initWebSocket(); }, 5000);
+                }
+            };
+        }
+        
+        startHttpFallback() {
+            if (!this.httpFallbackInterval) {
+                this.fetchHttpData();
+                this.httpFallbackInterval = setInterval(() => { if (!this.isWebSocketConnected) this.fetchHttpData(); }, 10000);
+            }
+        }
+        
+        stopHttpFallback() {
+            if (this.httpFallbackInterval) { clearInterval(this.httpFallbackInterval); this.httpFallbackInterval = null; }
+        }
+        
+        async fetchHttpData() {
+            try {
+                const response = await fetch("/readings");
+                if (!response.ok) throw new Error("HTTP Error");
+                const sensorData = await response.json();
+                this.handleSensorData(sensorData);
+                this.updateConnectionStatus(true);
+            } catch (error) { this.updateConnectionStatus(false); }
+        }
+        
+        handleSensorData(sensorData) {
+            requestAnimationFrame(() => this.updateVisualGauges(sensorData));
+        }
+        
+        updateVisualGauges(sensorData) {
+            const temp = parseFloat(sensorData.temperature) || 0;
+            const skyT = parseFloat(sensorData.skyT) || 0;
+            const pluie = parseFloat(sensorData.Pluie) || 0;
+            const lux = parseFloat(sensorData.lux) || 0;
+            const sqm = parseFloat(sensorData.sqm) || 0;
+            const gouttes = parseInt(sensorData.Gouttes) || 0;
+            const humidity = parseFloat(sensorData.humidity) || 0;
+            const pression = parseFloat(sensorData.pression) || 0;
+            const vent = parseFloat(sensorData.Vent) || 0;
+            const dewpoint = parseFloat(sensorData.dewpoint) || 0;
+
+            this.updateElement("value-temperature", temp.toFixed(2) + " °C");
+            this.updateElement("value-temperature-ciel", skyT.toFixed(2) + " °C");
+            this.updateElement("status-humidity", humidity.toFixed(1) + "%");
+            this.updateElement("status-pressure", pression.toFixed(2) + " hPa");
+            this.updateElement("status-dewpoint", dewpoint.toFixed(2) + " °C");
+            this.updateElement("status-wind", vent.toFixed(2) + " km/h");
+            this.updateElement("value-pluie", pluie.toFixed(2) + " mm/h");
+            this.updateElement("value-gouttes", gouttes === 1 ? "PLUIE" : "SEC");
+            this.updateElement("value-luminosite", lux.toFixed(0) + " Lux");
+            this.updateElement("value-sqm", sqm.toFixed(2));
+
+            // Mise à jour si les constantes ont changé coté serveur
+            this.updateConstantValue("currentK1", sensorData.k1);
+            this.updateConstantValue("currentK2", sensorData.k2);
+            // ... (les autres se mettent à jour via la boucle si besoin)
+            
+            this.updateThermometer('ambiant', temp, -15, 40);
+            this.updateThermometer('ciel', skyT, -30, 30);
+            this.updateRainGauge(pluie, 21);
+            this.updateRainSensor(gouttes);
+            this.updateLightMeter(lux, 88000);
+            this.updateSkyQuality(sqm, 24);
+            this.updateWindSpeed(vent);
+        }
+        
+        updateElement(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
+        updateConstantValue(id, value) { if (value !== undefined) this.updateElement(id, parseFloat(value).toFixed(1)); }
+        
+        updateThermometer(type, value, min, max) {
+            const percentage = ((value - min) / (max - min)) * 100;
+            const height = Math.min(100, Math.max(0, percentage));
+            const el = document.getElementById(`thermometer-tube-${type}`);
+            if (el) el.style.height = height + '%';
+        }
+        
+        updateRainGauge(value, max) {
+            const height = Math.min(100, Math.max(0, (value / max) * 100));
+            const el = document.getElementById('rain-level');
+            if (el) el.style.height = height + '%';
+        }
+        
+        updateRainSensor(value) {
+            const sensor = document.getElementById('sensor-surface');
+            const dry = document.querySelector('.status-dry');
+            const wet = document.querySelector('.status-wet');
+            if (sensor && dry && wet) {
+                if (value === 1) { sensor.classList.add('wet'); dry.style.display = 'none'; wet.style.display = 'block'; }
+                else { sensor.classList.remove('wet'); dry.style.display = 'block'; wet.style.display = 'none'; }
+            }
+        }
+        
+        updateLightMeter(value, max) {
+            const pos = ((value / max) * 100 / 100) * 200;
+            const el = document.getElementById('light-indicator');
+            if (el) el.style.left = pos + 'px';
+        }
+        
+        updateSkyQuality(value, max) {
+            const pos = ((value / max) * 100 / 100) * 200;
+            const el = document.getElementById('quality-level');
+            if (el) el.style.left = pos + 'px';
+        }
+        
+        updateWindSpeed(value) {
+            const el = document.getElementById('wind-blades');
+            if (!el) return;
+            if (value > 50) el.className = 'wind-blades fast';
+            else if (value > 20) el.className = 'wind-blades medium';
+            else el.className = 'wind-blades slow';
+            if (value === 0) el.style.animation = 'none'; else el.style.animation = '';
+        }
+        
+        updateConnectionStatus(connected) {
+            const el = document.getElementById('connectionStatus');
+            if (el) {
+                const channel = this.preferredChannel === 'websocket' ? ' (WS)' : ' (HTTP)';
+                if (connected) { el.className = 'connection-status status-connected'; el.querySelector('.status-text').textContent = 'Connecté' + channel; }
+                else { el.className = 'connection-status status-disconnected'; el.querySelector('.status-text').textContent = 'Déconnecté'; }
+            }
+        }
+        
+        updateWebSocketStatus(connected) {
+            const el = document.getElementById('websocketStatus');
+            if (el) {
+                el.className = connected ? 'ws-status connected' : 'ws-status disconnected';
+                el.querySelector('.ws-text').textContent = connected ? 'WS: OK' : 'WS: OFF';
+            }
+        }
+        
+        async updateConstants() {
+            const formData = new FormData(document.getElementById('constants-form'));
+            try {
+                const response = await fetch('/constantesmlx', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Erreur réseau');
+                
+                // Vider les champs
+                document.querySelectorAll('#constants-form input[type="text"]').forEach(input => input.value = '');
+                
+                // Rafraîchir les données immédiatement
+                setTimeout(() => this.fetchHttpData(), 500);
+            } catch (error) { console.error('Erreur MAJ constantes:', error); }
+        }
+        
+        async getFirmwareVersion() {
+            try {
+                const response = await fetch('/version');
+                const data = await response.json();
+                this.updateElement('firmware-version', data.version);
+            } catch (error) { console.error('Erreur version firmware:', error); }
+        }
+        
+        async setupOTAButton() {
+            try {
+                const response = await fetch('/ip');
+                const data = await response.json();
+                const btn = document.getElementById('otaButton');
+                if (btn) btn.onclick = () => window.location.href = `http://${data.ip}/OTA.html`;
+            } catch (error) { console.error('Erreur IP:', error); }
+        }
+        
+        setupEventListeners() {
+            const form = document.getElementById('constants-form');
+            if (form) form.addEventListener('submit', (e) => { e.preventDefault(); this.updateConstants(); });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new CommunicationManager().init();
+    });
+  </script>
+</body>
+</html>
