@@ -5,7 +5,7 @@
 
 namespace {
     struct Anemometre {
-        const uint8_t pin = 27;
+        const uint8_t pin = 14;
         volatile unsigned long compteur_wind = 0;
         float vitesse = 0.0;          // dernière valeur lissée/valide
         portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
@@ -16,11 +16,11 @@ namespace {
 // Constantes spécifiques à votre anémomètre
 const float KMH_PAR_TOUR = 2.4;       // 1 tour = 2.4 km/h
 const float IMPULSIONS_PAR_TOUR = 2;  // Typiquement 2 impulsions par tour (rising/falling)
-const uint32_t DEBOUNCE_TIME_WIND = 2; // 2ms pour capturer les hautes vitesses
+const uint32_t DEBOUNCE_TIME_WIND = 7,5; // 7,5ms pour capturer les hautes vitesses (max de 180 km/h)
 
 // Paramètres de filtrage
 #define MAX_PHYSICAL_SPEED 200.0f   // km/h : au-delà, on considère la valeur suspecte
-#define MAX_JUMP_FACTOR 2.0f        // si raw > last_valid * MAX_JUMP_FACTOR -> suspect
+#define MAX_JUMP_FACTOR 4.0f        // si raw > last_valid * MAX_JUMP_FACTOR -> suspect
 #define MAX_JUMP_ABS 30.0f          // si jump absolu > 30 km/h -> suspect
 #define EMA_ALPHA 0.35f             // coefficient pour lissage (0..1)
 

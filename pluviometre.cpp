@@ -4,9 +4,8 @@
 
 namespace {
     struct Pluviometre {
-        const uint8_t pin = 26;
+        const uint8_t pin = 27;
         volatile unsigned long compteur_rain = 0;
-        unsigned long dernierEnvoi = 0;
         const uint32_t debounce_time_pluvio = 50; // 50ms pour le pluviomètre
         float quantite = 0.0;
         portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
@@ -33,7 +32,6 @@ void IRAM_ATTR cntPluviometre() {
 void init_pluviometre() {
     pinMode(pluviometre.pin, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(pluviometre.pin), cntPluviometre, FALLING);
-    pluviometre.dernierEnvoi = millis();
 }
 
 void getSendPluviometre(int measurementPeriodOfRain) {

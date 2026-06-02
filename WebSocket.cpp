@@ -3,11 +3,6 @@
 #include <ArduinoJson.h>
 #include "variablesWEB.h"  // Ajoutez cette inclusion
 
-// Déclarations externes (maintenant dans variablesWEB.h)
-// extern SemaphoreHandle_t xSensorDataMutex;
-// extern SensorData cachedData;
-// extern void formatWebSocketData(const SensorData& data, char* buffer, size_t bufferSize);
-
 AsyncWebSocket ws("/ws");
 bool websocketEnabled = true;
 

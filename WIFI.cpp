@@ -7,8 +7,6 @@
 // --- PARAMETRES WIFI ---
 unsigned long previousMillis = 0;
 const long interval = 10000;
-// const long checkInterval = 60000; // Pas utilisé
-// unsigned long lastCheckMillis = 0; // Pas utilisé
 int reconnectAttempts = 0;
 const int maxReconnectAttempts = 20; // Augmenté car la vérification est plus rapide
 unsigned long lastWiFiCheck = 0;
@@ -82,10 +80,7 @@ void checkWiFi() {
         lastWiFiCheck = currentMillis;
         
         DEBUG_PRINTLN("[WiFi] Tentative de reconnexion (Non-bloquant)...");
-        
-        // On ne déconnecte pas explicitement pour éviter de casser une négo en cours
-        WiFi.reconnect();
-        
+        WiFi.reconnect();  
         reconnectAttempts++;
         if (reconnectAttempts > maxReconnectAttempts) {
              DEBUG_PRINTLN("[WiFi] Trop d'échecs. Redémarrage du module pour forcer le hardware.");

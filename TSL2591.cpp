@@ -38,6 +38,7 @@ float getSQM() {
   sqm = log10(lux/108000)/-0.4;
   return sqm;
 }
+
 #else
 
 // --- MODE REEL ---
@@ -222,16 +223,14 @@ void updateTSL2591() {
 
 float getLux() {
   if (!tslAvailable) return -999.0;
-  updateTSL2591();
   lux = tsl2591Data.lux;
   return lux;
 }
 
 float getSQM() {
   if (!tslAvailable) return -999.0;
-  updateTSL2591();
-  lux = tsl2591Data.lux;
-  sqm = log10(lux/108000)/-0.4;
-  return sqm;
+  if (tsl2591Data.lux <= 0) return 0.0; // Eviter log10(0) ou valeurs négatives
+  return log10(tsl2591Data.lux/108000.0)/-0.4;
 }
+
 #endif
