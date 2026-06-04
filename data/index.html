@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <title>METEO ASTRO ESP32 - Icônes Visuelles</title>
+  <title>METEO ASTRO ESP32 - Tableau de bord</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
   <link rel="icon" type="image/png" href="https://www.raspberryme.com/esp32-web-server-gauges/favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -233,6 +233,14 @@
           <button type='submit' class="btn-ota">Modifier les constantes</button>
         </div>
       </form>
+      
+      <div style="margin-top: 25px; border-top: 2px solid #bdc3c7; padding-top: 20px;">
+        <a href="/calibration.html" style="text-decoration: none;">
+          <button class="btn-ota" type="button" style="width: 100%; background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); font-size: 1.1rem; padding: 15px;">
+            <i class="fas fa-chart-line"></i> Outil de Calibration MLX90614
+          </button>
+        </a>
+      </div>
     </div>
   </div>
 
@@ -256,23 +264,17 @@
             this.startClock();
             this.setupOTAButton();
             this.getFirmwareVersion();
-            
-            // --- MODIFICATION ICI : On charge les constantes au démarrage via JS ---
             this.loadInitialConstants();
-            
             this.initWebSocket();
             this.setupEventListeners();
         }
 
-        // Nouvelle fonction pour charger les constantes initiales
         async loadInitialConstants() {
             try {
-                // On utilise /readings qui contient déjà les valeurs K1, K2, etc.
                 const response = await fetch("/readings");
                 if (!response.ok) throw new Error("HTTP error " + response.status);
                 const data = await response.json();
                 
-                // Remplissage des champs
                 this.updateConstantValue("currentK1", data.k1);
                 this.updateConstantValue("currentK2", data.k2);
                 this.updateConstantValue("currentK3", data.k3);
@@ -282,8 +284,6 @@
                 this.updateConstantValue("currentK7", data.k7);
                 this.updateConstantValue("currentTempClair", data.temp_ciel_clair);
                 this.updateConstantValue("currentTempCouvert", data.temp_ciel_couvert);
-                
-                console.log("Constantes initiales chargées.");
             } catch (error) {
                 console.error("Erreur chargement constantes:", error);
             }
@@ -393,10 +393,13 @@
             this.updateElement("value-luminosite", lux.toFixed(0) + " Lux");
             this.updateElement("value-sqm", sqm.toFixed(2));
 
-            // Mise à jour si les constantes ont changé coté serveur
             this.updateConstantValue("currentK1", sensorData.k1);
             this.updateConstantValue("currentK2", sensorData.k2);
-            // ... (les autres se mettent à jour via la boucle si besoin)
+            this.updateConstantValue("currentK3", sensorData.k3);
+            this.updateConstantValue("currentK4", sensorData.k4);
+            this.updateConstantValue("currentK5", sensorData.k5);
+            this.updateConstantValue("currentK6", sensorData.k6);
+            this.updateConstantValue("currentK7", sensorData.k7);
             
             this.updateThermometer('ambiant', temp, -15, 40);
             this.updateThermometer('ciel', skyT, -30, 30);
@@ -477,10 +480,7 @@
                 const response = await fetch('/constantesmlx', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Erreur réseau');
                 
-                // Vider les champs
                 document.querySelectorAll('#constants-form input[type="text"]').forEach(input => input.value = '');
-                
-                // Rafraîchir les données immédiatement
                 setTimeout(() => this.fetchHttpData(), 500);
             } catch (error) { console.error('Erreur MAJ constantes:', error); }
         }

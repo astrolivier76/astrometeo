@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <title>METEO ASTRO - Calibration MLX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* STYLES COHÉRENTS AVEC L'INDEX */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Arial', sans-serif; background-color: #CCCAC9; min-height: 100vh; display: flex; flex-direction: column; }
+    
+    .topnav { background-color: #2c3e50; color: white; padding: 15px; position: sticky; top: 0; z-index: 1000; }
+    .topnav-content { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .encadre { background-color: #46b8da; color: white; padding: 10px 20px; border-radius: 8px; text-transform: uppercase; font-weight: bold; }
+    
+    .btn-ota { background: linear-gradient(135deg, #46b8da 0%, #369cb9 100%); border: none; color: white; padding: 12px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-ota:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .btn-red { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+    .btn-green { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); }
+    .btn-orange { background: linear-gradient(135deg, #f39c12 0%, #d35400 100%); }
+    
+    .content { padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+    
+    .card { background-color: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .card-title { font-size: 1.2rem; font-weight: bold; color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #46b8da; padding-bottom: 8px; text-align: center; }
+    
+    .control-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+    
+    .slider-container { margin-bottom: 15px; }
+    .slider-container label { display: flex; justify-content: space-between; font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
+    .slider-container input[type=range] { width: 100%; cursor: pointer; }
+    
+    .status-badge { display: block; padding: 8px 10px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; color: white; background: #7f8c8d; text-align: center; margin-bottom: 15px; }
+    .status-recording { background: #e74c3c; animation: pulse 2s infinite; }
+    
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    
+    @media (max-width: 900px) {
+      .content { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topnav">
+    <div class="topnav-content">
+      <a href="/" style="color: white; text-decoration: none; font-size: 1.5rem;" title="Retour au menu"><i class="fas fa-arrow-left"></i></a>
+      <h1 class="encadre">CALIBRATION MLX90614</h1>
+      <div id="recordCount" style="font-weight: bold; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 8px;"><i class="fas fa-database"></i> 0 points</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <p class="card-title"><i class="fas fa-satellite-dish"></i> Acquisition</p>
+      
+      <div id="recordingStatus" class="status-badge">Prêt à enregistrer</div>
+
+      <div class="control-group">
+        <button id="btnStart" class="btn-ota btn-green" onclick="toggleRecording()"><i class="fas fa-play"></i> Démarrer Enregistrement</button>
+        <button class="btn-ota btn-orange" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Exporter CSV</button>
+        <button class="btn-ota btn-red" onclick="clearData()" style="font-size: 0.85rem;"><i class="fas fa-trash"></i> Effacer la mémoire</button>
+      </div>
+
+      <p class="card-title" style="margin-top: 30px;"><i class="fas fa-sliders-h"></i> Paramètres (K1-K5)</p>
+      
+      <div id="sliders">
+        </div>
+
+      <div class="control-group" style="margin-top: 20px;">
+        <button class="btn-ota" onclick="autoCalibrate()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);"><i class="fas fa-magic"></i> Lissage Auto (IA)</button>
+        <button class="btn-ota" onclick="sendConstantsToESP()" style="background: linear-gradient(135deg, #34495e, #2c3e50);"><i class="fas fa-upload"></i> Envoyer à la Station</button>
+      </div>
+    </div>
+
+    <div class="card" style="min-height: 600px; display: flex; flex-direction: column;">
+      <p class="card-title"><i class="fas fa-chart-area"></i> Suivi Temporel (Journée Ciel Clair)</p>
+      <div style="flex-grow: 1; position: relative;">
+        <canvas id="skyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- VARIABLES GLOBALES ---
+    let isRecording = false;
+    let recordInterval;
+    let chart;
+    let dataHistory = []; // Stockage sous la forme : { time: "12:00", Ta: 25.4, TsBrute: -15.2 }
+    
+    // Valeurs par défaut et limites des curseurs
+    const K_LIMITS = { K1: [0,100], K2: [-50,50], K3: [0,50], K4: [0,200], K5: [0,200] };
+    let currentK = { K1: 33, K2: 0, K3: 4, K4: 100, K5: 100 };
+
+    // --- MATHÉMATIQUES (Formule CloudWatcher) ---
+    function calcTsky(Ta, TsBrute, K) {
+      // Td = (K1/100)*(Ta - K2/10) + (K3/100)*(e^(K4/1000*Ta))^(K5/100)
+      let Td = (K.K1 / 100.0) * (Ta - K.K2 / 10.0) + (K.K3 / 100.0) * Math.pow(Math.exp(K.K4 / 1000.0 * Ta), (K.K5 / 100.0));
+      return TsBrute - Td; // Tsky = TsBrute - Td
+    }
+
+    // Calcule la variance de la courbe (Objectif : la rapprocher de 0 pour avoir une courbe plate)
+    function calcVariance(kObj) {
+      if (dataHistory.length === 0) return 0;
+      let sum = 0;
+      let values = dataHistory.map(d => calcTsky(d.Ta, d.TsBrute, kObj));
+      let mean = values.reduce((a,b) => a+b, 0) / values.length;
+      values.forEach(v => { sum += Math.pow(v - mean, 2); });
+      return sum / values.length;
+    }
+
+    // --- INITIALISATION ---
+    window.onload = () => {
+      initSliders();
+      initChart();
+      loadFromLocalStorage(); // Vérifie si des données existent suite à une fermeture d'onglet
+      
+      // Bouclier Anti-Fermeture
+      window.addEventListener("beforeunload", function (e) {
+        if (isRecording) {
+          e.preventDefault();
+          e.returnValue = "L'enregistrement est en cours. Vos données seront suspendues.";
+        }
+      });
+    };
+
+    // --- INTERFACE SLIDERS ---
+    function initSliders() {
+      const container = document.getElementById('sliders');
+      Object.keys(currentK).forEach(k => {
+        container.innerHTML += `
+          <div class="slider-container">
+            <label>${k} <span id="val${k}">${currentK[k]}</span></label>
+            <input type="range" id="slider${k}" min="${K_LIMITS[k][0]}" max="${K_LIMITS[k][1]}" value="${currentK[k]}" oninput="updateK('${k}', this.value)">
+          </div>
+        `;
+      });
+    }
+
+    function updateK(key, value) {
+      currentK[key] = parseFloat(value);
+      document.getElementById(`val${key}`).innerText = value;
+      updateChartData(); // Recalcule instantanément la courbe sans solliciter l'ESP32
+    }
+
+    function setAllSliders(kObj) {
+      currentK = {...kObj};
+      Object.keys(currentK).forEach(k => {
+        document.getElementById(`slider${k}`).value = currentK[k];
+        document.getElementById(`val${k}`).innerText = currentK[k].toFixed(1);
+      });
+      updateChartData();
+    }
+
+    // --- GRAPHIQUE (CHART.JS) ---
+    function initChart() {
+      const ctx = document.getElementById('skyChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [
+          { label: 'Ciel Corrigé (°C)', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.2)', borderWidth: 3, fill: true, tension: 0.3 },
+          { label: 'Air Ambiant (°C)', data: [], borderColor: '#e67e22', borderDash: [5, 5], borderWidth: 2, fill: false, tension: 0.3 }
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: { duration: 0 }, // Zéro animation pour un rafraîchissement ultra-fluide des sliders
+          plugins: { tooltip: { mode: 'index', intersect: false } },
+          scales: { y: { title: { display: true, text: 'Température (°C)' } } }
+        }
+      });
+    }
+
+    function updateChartData() {
+      chart.data.labels = dataHistory.map(d => d.time);
+      chart.data.datasets[1].data = dataHistory.map(d => d.Ta); // Température ambiante
+      chart.data.datasets[0].data = dataHistory.map(d => calcTsky(d.Ta, d.TsBrute, currentK)); // Ciel recalculé
+      chart.update();
+      document.getElementById('recordCount').innerHTML = `<i class="fas fa-database"></i> ${dataHistory.length} points`;
+    }
+
+    // --- LOGIQUE D'ACQUISITION ---
+    function toggleRecording() {
+      const btn = document.getElementById('btnStart');
+      const status = document.getElementById('recordingStatus');
+      
+      if (!isRecording) {
+        isRecording = true;
+        btn.innerHTML = '<i class="fas fa-stop"></i> Arrêter Enregistrement';
+        btn.className = 'btn-ota btn-red';
+        status.innerText = 'Enregistrement en cours (1 point / min)';
+        status.className = 'status-badge status-recording';
+        
+        fetchSensorData(); // Récupère le premier point immédiatement
+        recordInterval = setInterval(fetchSensorData, 60000); // Lance le timer (60s)
+      } else {
+        isRecording = false;
+        clearInterval(recordInterval);
+        btn.innerHTML = '<i class="fas fa-play"></i> Reprendre Enregistrement';
+        btn.className = 'btn-ota btn-green';
+        status.innerText = 'Enregistrement en pause';
+        status.className = 'status-badge';
+      }
+    }
+
+    async function fetchSensorData() {
+      try {
+        const res = await fetch('/readings');
+        const data = await res.json();
+        
+        let Ta = parseFloat(data.temperature);
+        let Tsky_esp = parseFloat(data.skyT);
+        let espK = { K1: parseFloat(data.k1), K2: parseFloat(data.k2), K3: parseFloat(data.k3), K4: parseFloat(data.k4), K5: parseFloat(data.k5) };
+        
+        // Cœur de l'astuce : Le PC calcule la valeur IR brute du capteur pour s'émanciper de l'ESP32
+        let Td_esp = (espK.K1/100.0) * (Ta - espK.K2/10.0) + (espK.K3/100.0) * Math.pow(Math.exp(espK.K4/1000.0 * Ta), (espK.K5/100.0));
+        let TsBrute = Tsky_esp + Td_esp;
+
+        let now = new Date();
+        let timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        
+        dataHistory.push({ time: timeStr, Ta: Ta, TsBrute: TsBrute });
+        
+        saveToLocalStorage();
+        updateChartData();
+      } catch (e) {
+        console.error("Erreur de connexion avec l'ESP32", e);
+      }
+    }
+
+    // --- SAUVEGARDE & EXPORT ---
+    function saveToLocalStorage() {
+      localStorage.setItem('astro_calib_data', JSON.stringify(dataHistory));
+    }
+
+    function loadFromLocalStorage() {
+      const saved = localStorage.getItem('astro_calib_data');
+      if (saved) {
+        dataHistory = JSON.parse(saved);
+        updateChartData();
+      }
+    }
+
+    function clearData() {
+      if(confirm("Attention ! Voulez-vous vraiment effacer toutes les données enregistrées ?")) {
+        dataHistory = [];
+        localStorage.removeItem('astro_calib_data');
+        updateChartData();
+      }
+    }
+
+    function exportCSV() {
+      if (dataHistory.length === 0) return alert("Aucune donnée à exporter.");
+      
+      let csvContent = "data:text/csv;charset=utf-8,Heure,Temp_Ambiante,Temp_Ciel_Infrarouge_Brute\n";
+      dataHistory.forEach(row => {
+        csvContent += `${row.time},${row.Ta.toFixed(2)},${row.TsBrute.toFixed(2)}\n`;
+      });
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Calibration_Astro_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // --- MOTEUR IA (Hill Climbing Algorithm) ---
+    function autoCalibrate() {
+      if (dataHistory.length < 5) return alert("Veuillez enregistrer au moins 5 points pour lancer la calibration automatique.");
+      
+      let bestK = {...currentK};
+      let bestVar = calcVariance(bestK);
+      let temperature = 50.0; // Température initiale du Recuit Simulé
+      
+      // L'algorithme va tester 5000 combinaisons aléatoires intelligentes en une fraction de seconde
+      for (let i = 0; i < 5000; i++) {
+        let testK = {
+          K1: Math.min(K_LIMITS.K1[1], Math.max(K_LIMITS.K1[0], bestK.K1 + (Math.random()-0.5) * temperature)),
+          K2: Math.min(K_LIMITS.K2[1], Math.max(K_LIMITS.K2[0], bestK.K2 + (Math.random()-0.5) * temperature)),
+          K3: Math.min(K_LIMITS.K3[1], Math.max(K_LIMITS.K3[0], bestK.K3 + (Math.random()-0.5) * temperature)),
+          K4: Math.min(K_LIMITS.K4[1], Math.max(K_LIMITS.K4[0], bestK.K4 + (Math.random()-0.5) * temperature)),
+          K5: Math.min(K_LIMITS.K5[1], Math.max(K_LIMITS.K5[0], bestK.K5 + (Math.random()-0.5) * temperature))
+        };
+        
+        let v = calcVariance(testK);
+        if (v < bestVar) {
+          bestVar = v;
+          bestK = {...testK};
+        }
+        temperature *= 0.995; // On affine la précision à chaque itération
+      }
+      
+      setAllSliders(bestK);
+      alert("Calibration terminée ! L'algorithme a optimisé les constantes pour aplatir la courbe.");
+    }
+
+    // --- COMMUNICATION POST ---
+    async function sendConstantsToESP() {
+      if(!confirm("Êtes-vous sûr de vouloir remplacer les constantes de l'ESP32 par ces nouvelles valeurs ?")) return;
+      
+      const formData = new URLSearchParams();
+      formData.append('newK1', currentK.K1.toFixed(1));
+      formData.append('newK2', currentK.K2.toFixed(1));
+      formData.append('newK3', currentK.K3.toFixed(1));
+      formData.append('newK4', currentK.K4.toFixed(1));
+      formData.append('newK5', currentK.K5.toFixed(1));
+      formData.append('newK6', '0'); // Non modifié par le solver
+      formData.append('newK7', '0'); // Non modifié par le solver
+
+      try {
+        const res = await fetch('/constantesmlx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        });
+        
+        if (res.ok) alert("Constantes sauvegardées avec succès ! Le prochain cycle de l'ESP32 utilisera ces valeurs.");
+        else alert("Erreur réseau lors de l'envoi des données.");
+      } catch (e) {
+        alert("Impossible de joindre la station ESP32.");
+      }
+    }
+  </script>
+</body>
+</html>

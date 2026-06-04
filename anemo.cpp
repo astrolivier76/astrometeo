@@ -14,9 +14,9 @@ namespace {
 }
 
 // Constantes spécifiques à votre anémomètre
-const float KMH_PAR_TOUR = 2.4;       // 1 tour = 2.4 km/h
-const float IMPULSIONS_PAR_TOUR = 2;  // Typiquement 2 impulsions par tour (rising/falling)
-const uint32_t DEBOUNCE_TIME_WIND = 7,5; // 7,5ms pour capturer les hautes vitesses (max de 180 km/h)
+const float KMH_PAR_TOUR = 2.4;          // 1 tour = 2.4 km/h
+const float IMPULSIONS_PAR_TOUR = 2;     // Typiquement 2 impulsions par tour (rising/falling)
+const uint32_t DEBOUNCE_TIME_WIND = 7.5; // 7,5ms pour capturer les hautes vitesses (max de 180 km/h)
 
 // Paramètres de filtrage
 #define MAX_PHYSICAL_SPEED 200.0f   // km/h : au-delà, on considère la valeur suspecte
