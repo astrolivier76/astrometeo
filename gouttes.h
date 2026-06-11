@@ -5,6 +5,6 @@ void init_GOUTTES();
 void lireTemperatureSurface();
 void updateGOUTTES();
 int getGOUTTES();
-void gererChauffageRosse(float dewpoint_atmospherique);
+float getTemperatureSurfaceGouttes(); // AJOUT : Permet au fichier principal de lire la NTC
 
 #endif

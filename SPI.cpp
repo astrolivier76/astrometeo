@@ -6,10 +6,17 @@
 #include "variablesWEB.h"
 #include "debug.h"
 
-// --- SPIFSS : utiliser pour sauvegarder et utiliser les coefficients K1 à K7 ---
+// --- VARIABLES EXTERNES ---
+extern float luxThresholdChauffage; 
+extern int capteur_ambiant;
+extern float correction_temperature_ambiante;
+extern float correction_temperature_bme280;
+extern float correction_altitude_pression;
+extern float correction_temperature_sht;
+
 void initSPIFFS() {
-  if (!SPIFFS.begin(true)) { // true = format if failed (plus sûr)
-    DEBUG_PRINTLN("initSPIFFS - Une erreur s'est produite lors de l'initialisation du SPIFFS");
+  if (!SPIFFS.begin(true)) {
+    DEBUG_PRINTLN("initSPIFFS - Erreur d'initialisation SPIFFS");
   } else {
     DEBUG_PRINTLN("SPIFFS chargé avec succés");
   }
@@ -33,16 +40,23 @@ void saveConstantsToFile() {
     configFile.println("K7=" + String(K7));
     configFile.println("temperature_ciel_clair=" + String(temperature_ciel_clair));
     configFile.println("temperature_ciel_couvert=" + String(temperature_ciel_couvert));
+    configFile.println("luxThresholdChauffage=" + String(luxThresholdChauffage));
+    
+    // NOUVEAU : Sauvegarde du capteur choisi et des offsets
+    configFile.println("capteur_ambiant=" + String(capteur_ambiant));
+    configFile.println("corr_temp=" + String(correction_temperature_ambiante));
+    configFile.println("corr_press=" + String(correction_altitude_pression));
+    
     configFile.close();
-    DEBUG_PRINTLN("Constantes sauvegardées");
+    DEBUG_PRINTLN("Configuration sauvegardée");
   } else {
-    DEBUG_PRINTLN("Échec de l'ouverture du fichier de configuration pour l'écriture");
+    DEBUG_PRINTLN("Échec de sauvegarde");
   }
 }
 
 void loadConstantsFromFile() {
   if (!SPIFFS.exists("/config/config.txt")) {
-      DEBUG_PRINTLN("Fichier config inexistant, utilisation des valeurs par défaut");
+      DEBUG_PRINTLN("Fichier config inexistant, utilisation par défaut");
       return;
   }
 
@@ -50,7 +64,7 @@ void loadConstantsFromFile() {
   if (configFile) {
     while (configFile.available()) {
       String line = configFile.readStringUntil('\n');
-      line.trim(); // Enlever les espaces et sauts de ligne
+      line.trim(); 
       int separator = line.indexOf('=');
       if (separator != -1) {
         String key = line.substring(0, separator);
@@ -65,51 +79,44 @@ void loadConstantsFromFile() {
         else if (key == "K7") K7 = value.toFloat();
         else if (key == "temperature_ciel_clair") temperature_ciel_clair = value.toFloat();
         else if (key == "temperature_ciel_couvert") temperature_ciel_couvert = value.toFloat();
+        else if (key == "luxThresholdChauffage") luxThresholdChauffage = value.toFloat();
+        
+        // NOUVEAU : Chargement dynamique
+        else if (key == "capteur_ambiant") capteur_ambiant = value.toInt();
+        else if (key == "corr_press") correction_altitude_pression = value.toFloat();
+        else if (key == "corr_temp") {
+            correction_temperature_ambiante = value.toFloat();
+            // On propage l'offset unique aux deux librairies automatiquement
+            correction_temperature_bme280 = correction_temperature_ambiante;
+            correction_temperature_sht = correction_temperature_ambiante;
+        }
       }
     }
     configFile.close();
-    DEBUG_PRINTLN("Constantes chargées depuis SPIFFS");
+    DEBUG_PRINTLN("Configuration chargée depuis SPIFFS");
   } else {
-    DEBUG_PRINTLN("Échec de l'ouverture du fichier de configuration pour la lecture");
+    DEBUG_PRINTLN("Échec lecture");
   }
 }
 
 void listSPIFFSFiles(const char* dirname) {
-  DEBUG_PRINTLN("Listing SPIFFS files:");
   File root = SPIFFS.open(dirname);
-  if (!root) {
-    DEBUG_PRINTLN("Échec de l'ouverture du répertoire principal");
-    return;
-  }
-  if (!root.isDirectory()) {
-    DEBUG_PRINTLN("Pas de répertoire trouvé");
-    return;
-  }
+  if (!root || !root.isDirectory()) return;
   File file = root.openNextFile();
   while (file) {
-    DEBUG_PRINT("  FILE: ");
     DEBUG_PRINTLN(file.name());
     file = root.openNextFile();
   }
 }
 
-// --- MODIFICATION CRITIQUE ICI ---
-// On ne charge plus le HTML en RAM pour faire des replace().
-// On envoie directement le fichier (Streaming) = 0 usage RAM.
 void handleConstantsPage(AsyncWebServerRequest *request) {
-  if (SPIFFS.exists("/index.html")) {
-    request->send(SPIFFS, "/index.html", "text/html");
-  } else {
-    request->send(404, "text/plain", "Index.html introuvable dans SPIFFS");
-  }
+  if (SPIFFS.exists("/index.html")) request->send(SPIFFS, "/index.html", "text/html");
+  else request->send(404, "text/plain", "Index.html introuvable dans SPIFFS");
 }
 
-// Fonction utilitaire conservée si besoin ailleurs, mais plus utilisée pour l'index
 String readFile(fs::FS &fs, const char *path) {
   File file = fs.open(path, "r");
-  if (!file || file.isDirectory()) {
-    return "";
-  }
+  if (!file || file.isDirectory()) return "";
   String content = file.readString();
   file.close();
   return content;

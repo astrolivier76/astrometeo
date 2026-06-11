@@ -76,10 +76,10 @@
     .rain-level { position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #3498db, #2980b9); transition: height 1s ease; height: 0; }
     
     /* DÉTECTEUR PLUIE */
-    .rain-sensor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; height: 120px; }
-    .sensor-surface { width: 80px; height: 80px; border: 3px solid #bdc3c7; border-radius: 10px; position: relative; overflow: hidden; background: #ecf0f1; transition: all 0.5s ease; }
+    .rain-sensor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 140px; }
+    .sensor-surface { width: 70px; height: 70px; border: 3px solid #bdc3c7; border-radius: 10px; position: relative; overflow: hidden; background: #ecf0f1; transition: all 0.5s ease; }
     .sensor-surface.wet { background: #3498db; border-color: #2980b9; }
-    .sensor-status { display: flex; gap: 10px; }
+    .sensor-status { display: flex; gap: 10px; align-items: center; }
     .status-dry, .status-wet { padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; text-transform: uppercase; }
     .status-dry { background: #2ecc71; color: white; }
     .status-wet { background: #e74c3c; color: white; }
@@ -187,7 +187,11 @@
         <div class="visual-gauge">
           <div class="rain-sensor">
             <div class="sensor-surface" id="sensor-surface"><div class="rain-drops"></div></div>
-            <div class="sensor-status"><span class="status-dry">SEC</span><span class="status-wet">PLUIE</span></div>
+            <div class="sensor-status">
+              <span class="status-dry">SEC</span>
+              <span class="status-wet">PLUIE</span>
+              <span id="badge-chauffage" style="padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; text-transform: uppercase; background: #7f8c8d; color: white;">CHAUFFAGE : --</span>
+            </div>
           </div>
           <div class="gauge-value-large" id="value-gouttes">--</div>
         </div>
@@ -329,6 +333,7 @@
             const pression = parseFloat(sensorData.pression) || 0;
             const vent = parseFloat(sensorData.Vent) || 0;
             const dewpoint = parseFloat(sensorData.dewpoint) || 0;
+            const chauffage = parseInt(sensorData.chauffage) || 0; // AJOUT : Parsing de l'état du chauffage
 
             this.updateElement("value-temperature", temp.toFixed(2) + " °C");
             this.updateElement("value-temperature-ciel", skyT.toFixed(2) + " °C");
@@ -348,6 +353,7 @@
             this.updateLightMeter(lux, 88000);
             this.updateSkyQuality(sqm, 24);
             this.updateWindSpeed(vent);
+            this.updateChauffageStatus(chauffage); // AJOUT : Appel de mise à jour visuelle du chauffage
         }
         
         updateElement(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
@@ -372,6 +378,20 @@
             if (sensor && dry && wet) {
                 if (value === 1) { sensor.classList.add('wet'); dry.style.display = 'none'; wet.style.display = 'block'; }
                 else { sensor.classList.remove('wet'); dry.style.display = 'block'; wet.style.display = 'none'; }
+            }
+        }
+
+        // AJOUT : Modification dynamique des couleurs et textes du badge de chauffe
+        updateChauffageStatus(state) {
+            const el = document.getElementById('badge-chauffage');
+            if (el) {
+                if (state === 1) {
+                    el.textContent = "CHAUFFAGE : ACTIF";
+                    el.style.background = "#e67e22"; // Orange d'activité
+                } else {
+                    el.textContent = "CHAUFFAGE : INACTIF";
+                    el.style.background = "#7f8c8d"; // Gris neutre
+                }
             }
         }
         

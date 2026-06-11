@@ -76,17 +76,9 @@ void updateGOUTTES() {
     }
 }
 
-// Nouvelle fonction à appeler dans le loop pour gérer la rosée
-void gererChauffageRosse(float dewpoint_atmospherique) {
-    // On allume le chauffage si la surface est à moins de 3°C du point de rosée
-    // ou si le capteur est actuellement mouillé (pour le sécher plus vite)
-    if (capteur.tempSurface < (dewpoint_atmospherique + 3.0) || capteur.valeur == 1) {
-        digitalWrite(capteur.pinHeater, HIGH);
-        DEBUG_PRINTLN("[CAPTEUR PLUIE] Chauffage : ALLUMÉ (Prévention rosée/Séchage)");
-    } else {
-        digitalWrite(capteur.pinHeater, LOW);
-        DEBUG_PRINTLN("[CAPTEUR PLUIE] Chauffage : ÉTEINT");
-    }
+// AJOUT : Implémentation du Getter pour la température de surface
+float getTemperatureSurfaceGouttes() {
+    return capteur.tempSurface;
 }
 
 int getGOUTTES() {

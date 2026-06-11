@@ -3,8 +3,9 @@
 #include <Wire.h>
 #include "debug.h"
 #include "variablesWEB.h"
-#include "SHT.h"
-#define SHT
+#include "MLX90614.h"
+
+float correction_temperature_MLX90614 = 0.0;
 
 namespace {
     struct MLX90614Sensor {
@@ -67,7 +68,7 @@ bool initMLX() {
     #endif
 }
 
-void updateMLX() {
+void updateMLX(float tempAmbianteExterne) {
     // Tentative de récupération si capteur défaillant
     if (!sensor.available) {
         unsigned long currentMillis = millis();
@@ -96,23 +97,20 @@ void updateMLX() {
         sensor.temperature_ambiante = 24.0 + random(-1, 1) * 0.1;
         sensor.temperature_ciel = -5.0 + random(-1, 1) * 0.2;
     #else
-        #ifdef SHT
-        sensor.temperature_ambiante = getTemperature_SHT();
+        // LOGIQUE DÉCOUPLÉE : Utilise la température externe fournie, sinon lit la sienne
+        if (tempAmbianteExterne != -999.0 && !isnan(tempAmbianteExterne)) {
+            sensor.temperature_ambiante = tempAmbianteExterne;
+        } else {
+            sensor.temperature_ambiante = sensor.mlx.readAmbientTempC() + correction_temperature_MLX90614;
+        }
+        
         sensor.temperature_ciel = sensor.mlx.readObjectTempC();
+        
         if (isnan(sensor.temperature_ambiante) || isnan(sensor.temperature_ciel)) {
             DEBUG_PRINTLN("Erreur de lecture du MLX90614 : valeurs invalides.");
             sensor.available = false;
             return;
         }
-        #else
-        sensor.temperature_ambiante = sensor.mlx.readAmbientTempC();
-        sensor.temperature_ciel = sensor.mlx.readObjectTempC();
-        if (isnan(sensor.temperature_ambiante) || isnan(sensor.temperature_ciel)) {
-            DEBUG_PRINTLN("Erreur de lecture du MLX90614 : valeurs invalides.");
-            sensor.available = false;
-            return;
-        }
-        #endif
     #endif
 
     // CALCUL EXACT SELON LA FORMULE LUNATICO
@@ -177,14 +175,22 @@ bool isMLXSleeping() {
 }
 
 bool isMLXAvailable() { return sensor.available; }
+
+float getTemperature_Ambiante_MLX() {
+    if (!sensor.available) return -999.0;
+    return sensor.temperature_ambiante;
+}
+
 float getTemperature_Sky() { 
     if (!sensor.available) return -999.0;
     return sensor.temperature_ciel_corrigee; 
 }
+
 float getNuages() { 
     if (!sensor.available) return -999.0;
     return sensor.nuages; 
 }
+
 int getSafeNuages() { 
     if (!sensor.available) return -999;
     return sensor.safe_nuages; 

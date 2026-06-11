@@ -4,9 +4,11 @@
 float Sign(float x);
 
 bool initMLX(); 
-void updateMLX();
+// On ajoute un argument par défaut pour la température externe
+void updateMLX(float tempAmbianteExterne = -999.0);
 bool isMLXAvailable();
 
+float getTemperature_Ambiante_MLX(); // Nouvelle fonction
 float getTemperature_Sky();
 float getNuages();
 int getSafeNuages();

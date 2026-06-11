@@ -5,7 +5,8 @@
 //#define SIMULATION_MODE
 #include "debug.h"
 
-float correction_altitude_pression = 6.0;
+extern float correction_altitude_pression = 6.0;
+extern float correction_temperature_bme280 = 0.0;
 const float seuil_chauffage = 2.0;
 
 namespace {
@@ -121,7 +122,7 @@ void updateBME() {
         return;
     }
     
-    sensor.temperature = temp;
+    sensor.temperature = temp + correction_temperature_bme280;
     sensor.pression = pres;
     sensor.pression = sensor.pression + correction_altitude_pression;
     sensor.humidite = hum;
@@ -183,9 +184,4 @@ float getPressure_BME() {
 float getDewpoint_BME() { 
     if (!sensor.available) return -999.0;
     return sensor.dewpoint; 
-}
-
-int needChauffage_BME280() {
-    if (!sensor.available) return 0;
-    return (sensor.temperature <= sensor.dewpoint + seuil_chauffage) ? 1 : 0;
 }

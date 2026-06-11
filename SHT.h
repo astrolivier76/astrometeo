@@ -9,8 +9,6 @@ float getTemperature_SHT();
 float getHumidity_SHT();
 float getDewpoint_SHT();
 
-int needChauffage_SHT();
-
 void sleepSHT();
 void wakeSHT();
 bool isSHTSleeping();

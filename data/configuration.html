@@ -6,66 +6,84 @@
   <link rel="icon" type="image/png" href="https://www.raspberryme.com/esp32-web-server-gauges/favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Styles identiques à index.html */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Arial', sans-serif; background-color: #CCCAC9; min-height: 100vh; display: flex; flex-direction: column; }
-    
     .topnav { background-color: #2c3e50; color: white; padding: 15px; position: sticky; top: 0; z-index: 1000; }
     .topnav-content { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; width: 100%; }
-    
     .encadre { background-color: #46b8da; color: white; padding: 12px 25px; font-size: 1.6rem; border-radius: 8px; text-align: center; margin: 0 0 10px 0; text-transform: uppercase; font-weight: bold; }
-    
     .content { padding: 20px; max-width: 1200px; margin: 0 auto; width: 100%; flex-grow: 1; display: flex; justify-content: center; align-items: flex-start;}
-    
     .btn-ota { background: linear-gradient(135deg, #46b8da 0%, #369cb9 100%); border: none; color: white; padding: 12px 20px; text-align: center; font-size: 14px; cursor: pointer; border-radius: 25px; transition: all 0.3s ease; white-space: nowrap; }
     .btn-ota:hover { background: linear-gradient(135deg, #369cb9 0%, #2a7b95 100%); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-    
-    /* FORMULAIRE CONSTANTES */
     .constants-form { background: linear-gradient(135deg, #ecf0f1 0%, #dfe6e9 100%); padding: 30px; border-radius: 12px; margin: 30px auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 500px; }
     .constants-form .card-title { font-size: 1.2rem; font-weight: bold; color: #2c3e50; margin-bottom: 25px; border-bottom: 2px solid #46b8da; padding-bottom: 8px; }
     .constant-input { margin: 15px 0; display: flex; align-items: center; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 100%; }
-    .constant-input label { width: 80px; font-weight: bold; color: #2c3e50; text-align: left; font-size: 1rem; flex-shrink: 0; }
+    .constant-input label { width: 110px; font-weight: bold; color: #2c3e50; text-align: left; font-size: 0.95rem; flex-shrink: 0; }
     .input-with-current { display: flex; align-items: center; flex: 1; gap: 15px; justify-content: space-between; }
-    .constant-input input { padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.3s ease; text-align: center; width: 120px; height: 40px; flex-shrink: 0; }
-    .constant-input input::placeholder { color: #95a5a6; font-size: 0.85rem; }
+    .constant-input input, .constant-input select { padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.3s ease; text-align: center; width: 120px; height: 40px; flex-shrink: 0; }
     .current-value { padding: 8px 12px; background: linear-gradient(135deg, #46b8da 0%, #369cb9 100%); color: white; border-radius: 6px; min-width: 80px; text-align: center; font-weight: bold; font-size: 0.9rem; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .center-container { display: flex; justify-content: center; width: 100%; margin-top: 25px; }
-    
-    @media (max-width: 768px) { .constant-input { flex-direction: column; gap: 10px; } .constant-input label { text-align: center; } .input-with-current { width: 100%; } }
-    @media (max-width: 480px) { .constant-input input { width: 100px; } .current-value { min-width: 70px; } }
+    .section-divider { margin: 25px 0 15px 0; border-top: 2px dashed #bdc3c7; }
+    @media (max-width: 768px) { .constant-input { flex-direction: column; gap: 10px; } .constant-input label { text-align: center; width:100%; } .input-with-current { width: 100%; } }
   </style>
 </head>
 <body>
 
   <div class="topnav">
     <div class="topnav-content">
-      <div style="flex: 1;">
-        <a href="/" style="color: white; text-decoration: none; font-size: 1.5rem;"><i class="fas fa-arrow-left"></i></a>
-      </div>
-      <div style="flex: 2; display: flex; justify-content: center;">
-        <h1 class="encadre">RÉGLAGES</h1>
-      </div>
+      <div style="flex: 1;"><a href="/" style="color: white; text-decoration: none; font-size: 1.5rem;"><i class="fas fa-arrow-left"></i></a></div>
+      <div style="flex: 2; display: flex; justify-content: center;"><h1 class="encadre">RÉGLAGES</h1></div>
       <div style="flex: 1;"></div>
     </div>
   </div>
 
   <div class="content">
     <div class="constants-form">
-      <p class="card-title"><i class="fas fa-cog icon"></i> Modifier les Constantes</p>
-      
       <form action='/constantesmlx' method='post' id="constants-form">
-        <div class="constant-input"><label for="newK1">K1</label><div class="input-with-current"><input type='text' name='newK1' id='newK1' placeholder="Nouvelle val."><span class="current-value" id="currentK1">...</span></div></div>
-        <div class="constant-input"><label for="newK2">K2</label><div class="input-with-current"><input type='text' name='newK2' id='newK2' placeholder="Nouvelle val."><span class="current-value" id="currentK2">...</span></div></div>
-        <div class="constant-input"><label for="newK3">K3</label><div class="input-with-current"><input type='text' name='newK3' id='newK3' placeholder="Nouvelle val."><span class="current-value" id="currentK3">...</span></div></div>
-        <div class="constant-input"><label for="newK4">K4</label><div class="input-with-current"><input type='text' name='newK4' id='newK4' placeholder="Nouvelle val."><span class="current-value" id="currentK4">...</span></div></div>
-        <div class="constant-input"><label for="newK5">K5</label><div class="input-with-current"><input type='text' name='newK5' id='newK5' placeholder="Nouvelle val."><span class="current-value" id="currentK5">...</span></div></div>
-        <div class="constant-input"><label for="newK6">K6</label><div class="input-with-current"><input type='text' name='newK6' id='newK6' placeholder="Nouvelle val."><span class="current-value" id="currentK6">...</span></div></div>
-        <div class="constant-input"><label for="newK7">K7</label><div class="input-with-current"><input type='text' name='newK7' id='newK7' placeholder="Nouvelle val."><span class="current-value" id="currentK7">...</span></div></div>
-        <div class="constant-input"><label for="newTempClair">T° Clair</label><div class="input-with-current"><input type='text' name='newTempClair' id='newTempClair' placeholder="Nouvelle val."><span class="current-value" id="currentTempClair">...</span></div></div>
-        <div class="constant-input"><label for="newTempCouvert">T° Couvert</label><div class="input-with-current"><input type='text' name='newTempCouvert' id='newTempCouvert' placeholder="Nouvelle val."><span class="current-value" id="currentTempCouvert">...</span></div></div>
+        
+        <p class="card-title"><i class="fas fa-cog icon"></i> Constantes MLX / Chauffage</p>
+        <div class="constant-input"><label>K1</label><div class="input-with-current"><input type='text' name='newK1' placeholder="Val."><span class="current-value" id="currentK1">...</span></div></div>
+        <div class="constant-input"><label>K2</label><div class="input-with-current"><input type='text' name='newK2' placeholder="Val."><span class="current-value" id="currentK2">...</span></div></div>
+        <div class="constant-input"><label>K3</label><div class="input-with-current"><input type='text' name='newK3' placeholder="Val."><span class="current-value" id="currentK3">...</span></div></div>
+        <div class="constant-input"><label>K4</label><div class="input-with-current"><input type='text' name='newK4' placeholder="Val."><span class="current-value" id="currentK4">...</span></div></div>
+        <div class="constant-input"><label>K5</label><div class="input-with-current"><input type='text' name='newK5' placeholder="Val."><span class="current-value" id="currentK5">...</span></div></div>
+        <div class="constant-input"><label>K6</label><div class="input-with-current"><input type='text' name='newK6' placeholder="Val."><span class="current-value" id="currentK6">...</span></div></div>
+        <div class="constant-input"><label>K7</label><div class="input-with-current"><input type='text' name='newK7' placeholder="Val."><span class="current-value" id="currentK7">...</span></div></div>
+        <div class="constant-input"><label>T° Clair</label><div class="input-with-current"><input type='text' name='newTempClair' placeholder="Val."><span class="current-value" id="currentTempClair">...</span></div></div>
+        <div class="constant-input"><label>T° Couvert</label><div class="input-with-current"><input type='text' name='newTempCouvert' placeholder="Val."><span class="current-value" id="currentTempCouvert">...</span></div></div>
+        <div class="constant-input"><label>Seuil Chau.</label><div class="input-with-current"><input type='text' name='newLuxChauffage' placeholder="En Lux"><span class="current-value" id="currentLuxChauffage">...</span></div></div>
+        
+        <div class="section-divider"></div>
+        <p class="card-title" style="border:none;"><i class="fas fa-tools icon"></i> Sondes & Calibration</p>
+
+        <div class="constant-input">
+            <label>Sonde Principale</label>
+            <div class="input-with-current" style="justify-content: center;">
+              <select name="newCapteur" id="newCapteur" style="width: 100%; max-width:200px;">
+                <option value="1">BME280</option>
+                <option value="2">MLX90614 (Interne)</option>
+                <option value="3">SHTx (Sensirion)</option>
+              </select>
+            </div>
+        </div>
+
+        <div class="constant-input">
+          <label>Offset Température</label>
+          <div class="input-with-current">
+            <input type='text' name='newCorrTemp' placeholder="Ex: -1.5">
+            <span class="current-value" id="currentCorrTemp">...</span>
+          </div>
+        </div>
+
+        <div class="constant-input">
+          <label>Offset Pression</label>
+          <div class="input-with-current">
+            <input type='text' name='newCorrPress' placeholder="Ex: +6.0">
+            <span class="current-value" id="currentCorrPress">...</span>
+          </div>
+        </div>
         
         <div class="center-container">
-          <button type='submit' class="btn-ota" id="submitBtn"><i class="fas fa-save"></i> Sauvegarder les modifications</button>
+          <button type='submit' class="btn-ota" id="submitBtn"><i class="fas fa-save"></i> Sauvegarder</button>
         </div>
       </form>
       
@@ -80,7 +98,6 @@
   </div>
 
   <script>
-    // Récupération des valeurs actuelles depuis l'API
     async function loadCurrentValues() {
         try {
             const response = await fetch('/readings');
@@ -88,30 +105,32 @@
                 const data = await response.json();
                 
                 const setVal = (id, val) => {
-                    if(val !== undefined) {
-                        document.getElementById(id).textContent = parseFloat(val).toFixed(1);
+                    if(val !== undefined && document.getElementById(id)) {
+                        document.getElementById(id).textContent = parseFloat(val).toFixed(2);
                     }
                 };
 
-                setVal("currentK1", data.k1);
-                setVal("currentK2", data.k2);
-                setVal("currentK3", data.k3);
-                setVal("currentK4", data.k4);
-                setVal("currentK5", data.k5);
-                setVal("currentK6", data.k6);
+                setVal("currentK1", data.k1); setVal("currentK2", data.k2);
+                setVal("currentK3", data.k3); setVal("currentK4", data.k4);
+                setVal("currentK5", data.k5); setVal("currentK6", data.k6);
                 setVal("currentK7", data.k7);
                 setVal("currentTempClair", data.temp_ciel_clair);
                 setVal("currentTempCouvert", data.temp_ciel_couvert);
+                setVal("currentLuxChauffage", data.lux_threshold_chauffage);
+                
+                // Hydratation des nouveaux champs
+                setVal("currentCorrTemp", data.corr_temp);
+                setVal("currentCorrPress", data.corr_press);
+
+                if (data.capteur_ambiant !== undefined) {
+                    document.getElementById('newCapteur').value = data.capteur_ambiant;
+                }
             }
-        } catch (error) {
-            console.error("Erreur de chargement:", error);
-        }
+        } catch (error) { console.error("Erreur de chargement:", error); }
     }
 
-    // Gestion de l'envoi du formulaire en arrière-plan (sans recharger de force la page)
     document.getElementById('constants-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
         const btn = document.getElementById('submitBtn');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde...';
@@ -122,21 +141,17 @@
         try {
             const response = await fetch('/constantesmlx', { method: 'POST', body: formData });
             if (response.ok) {
-                // Vider les champs
+                // On ne vide que les inputs text (pas le menu déroulant)
                 document.querySelectorAll('#constants-form input[type="text"]').forEach(input => input.value = '');
-                // Recharger les valeurs affichées
                 await loadCurrentValues();
-                
                 btn.innerHTML = '<i class="fas fa-check"></i> Sauvegardé !';
                 btn.style.background = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)";
             }
         } catch (error) {
-            console.error('Erreur:', error);
             btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur';
             btn.style.background = "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)";
         }
 
-        // Réinitialiser le bouton après 2 secondes
         setTimeout(() => {
             btn.innerHTML = originalText;
             btn.style.background = "";
@@ -144,7 +159,6 @@
         }, 2000);
     });
 
-    // Chargement initial
     document.addEventListener('DOMContentLoaded', loadCurrentValues);
   </script>
 </body>
